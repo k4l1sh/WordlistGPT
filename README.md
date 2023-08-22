@@ -17,7 +17,7 @@ WordlistGPT is a versatile tool designed to generate wordlists using the ChatGPT
 2. OpenAI API key for accessing the ChatGPT API.
 
 ## Usage
-Create a .env file with `API_KEY=your_openai_api_key_here` or run the script with the key in the arguments `--key your_openai_api_key_here`
+Create a .env file with `API_KEY=your_openai_api_key_here` or run the script with openai api key in the arguments `--key your_openai_api_key_here`
 ```
 python wordlistgpt.py [OPTIONS]
 ```
