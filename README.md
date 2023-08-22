@@ -33,11 +33,11 @@ curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.
 - `-m, --max-words`: Maximum number of words in the wordlist (default: 5000000).
 - `-min, --min-size`: Minimum amount of characters for each word (default: 6).
 - `-max, --max-size`: Maximum amount of characters for each word (default: 20).
-- `-o, --output`: Output file for the generated wordlist (default: `output.txt`).
+- `-o, --output`: Output file for the generated wordlist (default: output.txt).
 - `-u, --uppercase`: Maximum number of characters to convert to uppercase in each word (default: 2).
 - `-l, --leet`: Maximum number of leet characters to replace in each word (default: 2).
 - `-r, --random-chars`: Maximum range of random characters to be added (default: 2).
-- `-rc, --random-charset`: Charset of characters to be randomly added (default: `0123456789!@$&+_-.?/+;#`).
+- `-rc, --random-charset`: Charset of characters to be randomly added (default: 0123456789!@$&+_-.?/+;#).
 
 ## Features
 - Generates wordlists based on user-provided seed words.
