@@ -1,6 +1,7 @@
 
 # WordlistGPT
 
+[![Releases](https://img.shields.io/github/release/k4l1sh/WordlistGPT.svg)](https://github.com/k4l1sh/WordlistGPT/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Make custom wordlists using ChatGPT to generate more words related to words you provide.
