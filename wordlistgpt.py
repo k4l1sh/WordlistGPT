@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from time import perf_counter
+from functools import reduce
 import argparse
 import requests
 import logging
@@ -8,18 +9,18 @@ import random
 import json
 import re
 import os
-import sys
 
 def main():
-    set_logger()
     load_env()
     args = parse_arguments()
+    set_logger(args)
     openai_key = args.key or os.getenv("API_KEY")
     if not validate_args(args, openai_key):
         return
     args_dict = vars(args).copy()
-    args_dict['key'] = f"{openai_key[:8]}..."
-    logging.info(f"Arguments parsed: {args_dict}")
+    if openai_key:
+        args_dict['key'] = f"{openai_key[:8]}..."
+    logging.debug(f"Arguments parsed: {args_dict}")
     logging.info("Starting WordlistGPT...")
     wordlist_generator = WordlistGenerator(args, openai_key)
     wordlist_generator.orchestrate_threads()
@@ -41,7 +42,7 @@ def parse_arguments():
     word_options.add_argument('-n', '--number', type=int, default=20, help='Number of words to generate in ChatGPT for each word. (default: %(default)s)')
     size_options = parser.add_argument_group('Size Options', 'Control the size of the words and the wordlist.')
     size_options.add_argument('-min', '--min-size', type=int, default=6, help='Minimum amount of characters for each word. (default: %(default)s)')
-    size_options.add_argument('-max', '--max-size', type=int, default=14, help='Maximum amount of characters for each word. (default: %(default)s)')
+    size_options.add_argument('-max', '--max-size', type=int, default=18, help='Maximum amount of characters for each word. (default: %(default)s)')
     size_options.add_argument('-m', '--max-words', type=int, default=10000000, help='Maximum number of words in the wordlist. (default: %(default)s)')
     special_options = parser.add_argument_group('Special Options', 'Control the special characters and casing in words.')
     special_options.add_argument('-u', '--uppercase', type=int, default=float('inf'), help='Maximum number of characters to convert to uppercase in each word. (default: %(default)s)')
@@ -59,13 +60,12 @@ def parse_arguments():
     other_options = parser.add_argument_group('Other Options')
     other_options.add_argument('-k', '--key', type=str, help='OpenAI API Key. (default: %(default)s)', default=None)
     other_options.add_argument('-o', '--output', type=str, default='wordlist.txt',help='Output file for the generated wordlist. (default: %(default)s)')
+    other_options.add_argument('-s', '--silent', action='store_true', default=False, help='If True, disable logging. (default: %(default)s)')
     return parser.parse_args()
 
 def validate_args(args, openai_key):
     if not openai_key:
-        logging.error(
-            "API_KEY is not set in the environment variables. Set it in the .env file with API_KEY=(YOUR API KEY) or enter as argument -k")
-        return False
+        logging.warning("API_KEY is not set in the environment variables. Set it in the .env file with API_KEY=YOUR API KEY or enter as argument -k to generate more related words with GPT")
     if not args.words:
         logging.error(
             "No words provided, use -w or --words argument followed by one or more words.")
@@ -79,9 +79,12 @@ def load_env(env_file=".env"):
                 key, value = line.strip().split('=', 1)
                 os.environ[key] = value
 
-def set_logger():
+def set_logger(args):
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    if args.silent:
+        logger.setLevel(logging.CRITICAL)
+    else:
+        logger.setLevel(logging.INFO)
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(CustomFormatter())
     logger.addHandler(console_handler)
@@ -103,7 +106,11 @@ class CustomFormatter(logging.Formatter):
 
     def format(self, record):
         level = self.LEVELS.get(record.levelno, "")
-        return f"{level} {record.getMessage()}"
+        message = f"{level} {record.getMessage()}"
+        if record.exc_info:
+            exc_text = self.formatException(record.exc_info)
+            message += f"\n{exc_text}"
+        return message
 
 
 class WordlistGenerator:
@@ -112,8 +119,9 @@ class WordlistGenerator:
         self.args = args
         self.openai_key = openai_key
         self.gpt_endpoint = "https://api.openai.com/v1/chat/completions"
+        self.leet_mapping = json.loads(args.leet_mapping)
         self._wordlist = set()
-        self.estimated_words_number = 0
+        self.estimated_words_number = len(args.words)*(args.number+1)
 
     @property
     def wordlist(self):
@@ -124,7 +132,7 @@ class WordlistGenerator:
         if not isinstance(words, (set, list, tuple)):
             words = {words}
         self._wordlist.update(words)
-        if len(self._wordlist)%1000 == 0:
+        if not self.args.silent and len(self._wordlist)%1000 == 0:
             self.print_progress_bar(len(self._wordlist), self.estimated_words_number)
 
     @wordlist.deleter
@@ -159,18 +167,19 @@ class WordlistGenerator:
         return False
 
     def orchestrate_threads(self):
-        start = perf_counter()
-        self.estimated_words_number = self.estimate_total_words()
         with ThreadPoolExecutor() as executor:
             logging.info(f"Generating wordlist for {self.args.words}")
             executor.map(self.words_from_gpt, self.args.words, [self.args.number]*len(self.args.words))
+        start = perf_counter()
         self.generate_wordlist()
-        print("")
+        if not self.args.silent:
+            self.print_progress_bar(len(self._wordlist), len(self._wordlist))
+            print("")
         logging.info(f"Elapsed time: {round(perf_counter()-start, 2)} seconds.")
 
     def words_from_gpt(self, word, num_words):
         self.wordlist = word
-        if num_words > 1:
+        if num_words > 1 and self.openai_key:
             content = f"You are a word generator tool that generates {num_words} words related to the theme {word}. Each word must have a minimum of {self.args.min_size} and a maximum of {self.args.max_size} characters."
             message = [{"role": "system", "content": content}]
             headers = {
@@ -183,41 +192,28 @@ class WordlistGenerator:
                 "max_tokens": 4096 - len(content)
             }
             response = requests.post(self.gpt_endpoint, headers=headers, json=data)
-            response_data = response.json()
-            generated_words_from_gpt = self.words_from_string(response_data['choices'][0]['message']['content'])
-            self.wordlist = generated_words_from_gpt
-            logging.info( f"Words generated from GPT based on {word}: {generated_words_from_gpt}")
+            if response.ok:
+                response_data = response.json()
+                generated_words_from_gpt = self.words_from_string(response_data['choices'][0]['message']['content'])
+                self.wordlist = generated_words_from_gpt
+                logging.info(f"Words generated from GPT based on {word}: {generated_words_from_gpt}")
+            else:
+                logging.error(f"API call failed with status code {response.status_code}, Error: {response.text}")
 
     def generate_wordlist(self):
         try:
             self.split_subwords()
             self.force_len(3, self.args.max_size)
             self.remove_non_words()
-            self.estimated_words_number = self.estimate_total_words(self._wordlist)
             self.add_uppercase_variations()
             self.add_leet_variations()
             self.insert_chars()
-        except Exception as e:
-            logging.error(
-                f"An error occurred during wordlist generation: {e}", exc_info=True)
-
-    def add_leet_variations(self):
-        for word in self.wordlist:
-            if self.wordlist_over_max_limit():
-                return
-            char_options_list = []
-            leet_count = 0
-            for ch in word:
-                options = [ch]
-                leet_equiv = json.loads(self.args.leet_mapping).get(ch)
-                if leet_equiv and leet_count < self.args.leet:
-                    options.append(leet_equiv)
-                    leet_count += 1
-                char_options_list.append(options)
-            self.wordlist = {''.join(combination)
-                             for combination in product(*char_options_list)}
+            self.force_len(self.args.min_size, self.args.max_size)
+        except Exception:
+            logging.error("An error occurred during wordlist generation", exc_info=True)
 
     def add_uppercase_variations(self):
+        self.estimate_uppercase()
         limited_uppercase_wordlist = set()
         for word in self.wordlist:
             if self.wordlist_over_max_limit():
@@ -227,7 +223,24 @@ class WordlistGenerator:
                     limited_uppercase_wordlist.add(''.join(combination))
         self.wordlist = limited_uppercase_wordlist
 
+    def add_leet_variations(self):
+        self.estimate_leet()
+        for word in self.wordlist:
+            if self.wordlist_over_max_limit():
+                return
+            char_options_list = []
+            leet_count = 0
+            for ch in word:
+                options = [ch]
+                leet_equiv = self.leet_mapping.get(ch)
+                if leet_equiv and leet_count < self.args.leet:
+                    options.append(leet_equiv)
+                    leet_count += 1
+                char_options_list.append(options)
+            self.wordlist = {''.join(combination) for combination in product(*char_options_list)}
+
     def insert_chars(self):
+        self.estimate_random()
         for word in self.wordlist:
             if self.wordlist_over_max_limit():
                 return
@@ -247,28 +260,22 @@ class WordlistGenerator:
                 new_words.add(new_word)
             self.wordlist = new_words
 
-    def estimate_total_words(self, words=None):
-        words = words or self.args.words
-        total_count = 0
-        for word in words:
-            word_count = len(word)
-            base_word_count = word_count
-            uppercase_variations = sum(2 if ch.isalpha() else 1 for ch in word)
-            base_word_count *= max(1, min(self.args.uppercase, uppercase_variations))
-            leet_variations = sum(2 if ch in json.loads(self.args.leet_mapping) else 1 for ch in word)
-            base_word_count *= max(1, min(self.args.leet, leet_variations))
-            random_variations = self.args.random_level * self.args.random_chars
-            base_word_count *= max(1, random_variations)
-            total_count += min(base_word_count, self.args.max_words)
-        return total_count
+    def estimate_uppercase(self):
+        self.estimated_words_number = sum(reduce(lambda x, y: x * y, [(2 if ch.isalpha() else 1) for ch in word], 1) for word in self._wordlist)
+    
+    def estimate_leet(self):
+        self.estimated_words_number = sum(reduce(lambda x, y: x * y,[(2 if ch in self.leet_mapping else 1) for ch in word], 1) for word in self._wordlist)
+    
+    def estimate_random(self):
+        self.estimated_words_number = len(self._wordlist) * (1 + self.args.random_level // 2)
 
     @staticmethod
-    def print_progress_bar(iteration, total, bar_length=50):
-        max_total = max(iteration,total)
+    def print_progress_bar(iteration, total, bar_length=20):
+        max_total = max(iteration, total)
         percentage = (iteration / max_total) * 100
         block = int(round(bar_length * iteration / max_total))
-        text = f"\033[1;32m[+]\033[0m Progress: [{'#' * block}{'-' * (bar_length - block)}] {round(percentage, 2)}% ({iteration}/{max_total})"
-        print(text, end='\r')
+        text = f"\033[1;32m[+]\033[0m Progress: [{'#' * block}{'-' * (bar_length - block)}] {round(percentage, 2)}% ({iteration}/{max_total})\033[K"
+        print(text, end='\r' , flush=True)
 
     def save_wordlist(self):
         with open(self.args.output, 'w') as file:
