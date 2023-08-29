@@ -1,11 +1,16 @@
-import concurrent.futures
+from memory_profiler import profile
+from time import perf_counter
+from concurrent.futures import ThreadPoolExecutor
 import logging
 import argparse
 import random
 import requests
+from itertools import product
+import sys
 import re
 import os
 
+@profile
 def main():
     set_logger()
     load_env()
@@ -21,11 +26,11 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate wordlists')
     parser.add_argument('-w', '--words', nargs='+', help='Words to generate wordlist for')
     parser.add_argument('-n', '--number', type=int, default=30, help='Number of words to generate in ChatGPT for each word')
-    parser.add_argument('-m', '--max-words', type=int, default=5000000, help='Maximum number of words in the wordlist')
+    parser.add_argument('-m', '--max-words', type=int, default=40000000, help='Maximum number of words in the wordlist')
     parser.add_argument('-min', '--min-size', type=int, default=6, help='Minimum amount of characters for each word')
     parser.add_argument('-max', '--max-size', type=int, default=20, help='Maximum amount of characters for each word')
     parser.add_argument('-k', '--key', type=str, help='OpenAI API Key')
-    parser.add_argument('-o', '--output', type=str, default='output.txt', help='Output file for the generated wordlist')
+    parser.add_argument('-o', '--output', type=str, default='wordlist.txt', help='Output file for the generated wordlist')
     parser.add_argument('-u', '--uppercase', type=int, default=2, help='Maximum number of characters to convert to uppercase in each word')
     parser.add_argument('-l', '--leet', type=int, default=2, help='Maximum number of leet characters to replace in each word')
     parser.add_argument('-r', '--random-chars', type=int, default=2, help='Maximum range of random characters to be added')
@@ -79,7 +84,6 @@ class WordlistGenerator:
     def __init__(self, args, openai_key):
         self.args = args
         self.openai_key = openai_key
-        self.wordlist = []
         self.gpt_endpoint =  "https://api.openai.com/v1/chat/completions"
         self.leet_mapping = {
             'o': '0',
@@ -94,125 +98,106 @@ class WordlistGenerator:
             'b': '8',
             'g': '9',
         }
+        self._wordlist = set()
+
+    @property
+    def wordlist(self):
+        return sorted(list(self._wordlist))
+
+    @wordlist.setter        
+    def wordlist(self, words):
+        if not isinstance(words, (set, list, tuple)): 
+            words = {words}
+        self._wordlist.update(words)
+        print(len(self._wordlist))
+
+    @wordlist.deleter
+    def wordlist(self):
+        self._wordlist.clear()
+
+    def apply_to_wordlist(self, func, *args, **kwargs):
+        self.wordlist = {func(word, *args, **kwargs) for word in self._wordlist}
+
+    def force_len(self, min_len, max_len):
+        self._wordlist -= {word for word in self._wordlist if not min_len <= len(word) <= max_len}
+
+    def add_words_from_string(self, words):
+        self.wordlist = {word.strip().rstrip('.').lower() for word in re.findall(r'''[\d\r\n-]*\.?\s?([\w \-\.'"]+)''', words)}
+    
+    def split_subwords(self):
+        self.wordlist = {subword for word in self._wordlist for subword in re.split(r'\W+', word)}
+    
+    def remove_non_words(self):
+        cleaned_wordlist = {re.sub(r'\W', '', word) for word in self._wordlist}
+        del self.wordlist
+        self.wordlist = cleaned_wordlist
+    
+    def setter_stop(self, word):
+        if len(word) > self.args_max_size:
+            return True
+        if len(self._wordlist) > self.args.max_words:
+            return True
+        return False
 
     def orchestrate_threads(self):
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        start = perf_counter()
+        with ThreadPoolExecutor() as executor:
             logging.info(f"Generating wordlist for {self.args.words}")
-            futures = {executor.submit(self.generate_wordlist, word, self.args.number): word for word in self.args.words}
-            for future in concurrent.futures.as_completed(futures):
-                if len(self.wordlist) >= self.args.max_words:
-                    logging.warning(f"Wordlist has reached the limit of {self.args.max_words} words. Stopping the generation.")
-                    break
-                word = futures[future]
-                try:
-                    self.wordlist.extend(future.result())
-                except Exception as e:
-                    logging.error(f"Error generating wordlist for '{word}': {e}", exc_info=True)
-            self.wordlist = sorted(list(set(self.wordlist)))
+            executor.map(self.generate_wordlist, self.args.words, [self.args.number]*len(self.args.words))
+        print(perf_counter()-start)
+
 
     def generate_wordlist(self, word, num_words):
-        wordlist = [word]
-        if num_words > 1:
-            content = f"You are a word generator tool that generates {num_words} words related to the theme {word}. Each word must have a minimum of {self.args.min_size} and a maximum of {self.args.max_size} characters."
-            message = {"role": "system", "content": content}
-            conversation = [message]
-            headers = {
-                "Authorization": f"Bearer {self.openai_key}",
-                "Content-Type": "application/json"
-            }
-            data = {
-                "model": "gpt-3.5-turbo",
-                "messages": conversation,
-                "max_tokens": 4096 - len(content)
-            }
-            response = requests.post(self.gpt_endpoint, headers=headers, json=data)
-            response_data = response.json()
-            logging.info(f"Total tokens spent for the word {word}: {response_data['usage']['total_tokens']}")
-            wordlist.extend(self.make_list_from_words_string(response_data['choices'][0]['message']['content']))
-            logging.info(f"Unique words generated from GPT for the word {word}: {len(wordlist)} [{', '.join(wordlist[:5])}...]")
-        old_len = len(wordlist)
-        wordlist = self.split_subwords(wordlist)
-        wordlist = self.remove_non_words_characters(wordlist)
-        logging.info(f"Wordlist of {word} extended from {old_len} to {len(wordlist)} words after adding splitted words")
-        if self.args.uppercase > 0:
-            old_len = len(wordlist)
-            wordlist = self.words_to_uppercase(wordlist)
-            logging.info(f"Wordlist of {word} extended from {old_len} to {len(wordlist)} words after adding uppercase variations")
-        if len(wordlist) >= self.args.max_words:
-            return wordlist[:self.args.max_words]
-        if self.args.leet > 0:
-            old_len = len(wordlist)
-            wordlist = self.words_to_leet(wordlist)
-            logging.info(f"Wordlist of {word} extended from {old_len} to {len(wordlist)} words after adding l33t alphabet combinations")
-        if len(wordlist) >= self.args.max_words:
-            return wordlist[:self.args.max_words]
-        if self.args.random_chars > 0:
-            old_len = len(wordlist)
-            wordlist = self.insert_chars(wordlist, self.args.random_charset, 1, self.args.random_chars)
-            logging.info(f"Wordlist of {word} extended from {old_len} to {len(wordlist)} words after adding 1 to {self.args.random_chars} random characters")
-        old_len = len(wordlist)
-        wordlist = self.force_min_len(wordlist, self.args.min_size)
-        wordlist = self.force_max_len(wordlist, self.args.max_size)
-        logging.info(f"Wordlist of {word} shortened from {old_len} to {len(wordlist)} after forcing the wordlist to have the minimum of {self.args.min_size} and a maximum of {self.args.max_size} characters per word")
-        return wordlist
-    
-    @staticmethod
-    def make_list_from_words_string(words):
-        return list(set(word.strip().rstrip('.').lower() for word in re.findall(r'''[\d\r\n-]*\.?\s?([\w \-\.'"]+)''', words)))
-    
-    @staticmethod
-    def split_subwords(wordlist):
-        return list(set(wordlist+[subword for word in wordlist for subword in re.split(r'\W+', word)]))
-    
-    @staticmethod
-    def force_min_len(wordlist, word_len):
-        return [word for word in wordlist if len(word) >= word_len]
-    
-    @staticmethod
-    def force_max_len(wordlist, word_len):
-        return [word for word in wordlist if len(word) <= word_len]
-    
-    @staticmethod
-    def remove_non_words_characters(wordlist):
-        return list(set(re.sub(r'\W', '', word) for word in wordlist))
+        try:
+            self.wordlist = word
+            if num_words > 1:
+                content = f"You are a word generator tool that generates {num_words} words related to the theme {word}. Each word must have a minimum of {self.args.min_size} and a maximum of {self.args.max_size} characters."
+                message = {"role": "system", "content": content}
+                conversation = [message]
+                headers = {
+                    "Authorization": f"Bearer {self.openai_key}",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": "gpt-3.5-turbo",
+                    "messages": conversation,
+                    "max_tokens": 4096 - len(content)
+                }
+                response = requests.post(self.gpt_endpoint, headers=headers, json=data)
+                response_data = response.json()
+                self.add_words_from_string(response_data['choices'][0]['message']['content'])
+            logging.info(self.wordlist)
+            self.split_subwords()
+            self.force_len(3, self.args.max_size)
+            self.remove_non_words()
+            logging.info(self.wordlist)
+            self.add_uppercase_and_leet_variations()
+            #logging.info(self.wordlist)
+        except Exception as e:
+            logging.error(e, exc_info=True)
 
-    def generate_leet_combinations(self, word, leet_count=0):
-        if leet_count > self.args.leet:
-            return [word]
-        if not word:
-            return ['']
-        rest = self.generate_leet_combinations(word[1:], leet_count)  
-        if word[0].lower() in self.leet_mapping:
-            leet_sub = self.generate_leet_combinations(word[1:], leet_count + 1)
-            leet_list = [word[0] + combination for combination in rest] + [self.leet_mapping[word[0].lower()] + combination for combination in leet_sub]
-            return leet_list[:self.args.max_words]
-        else:
-            return [word[0] + combination for combination in rest]
-            
-    def generate_uppercase_combinations(self, word, uppercase_count=0):
-        if uppercase_count > self.args.uppercase:
-            return [word]
-        if not word:
-            return [''] 
-        rest = self.generate_uppercase_combinations(word[1:], uppercase_count)  
-        if word[0].islower():
-            upper_sub = self.generate_uppercase_combinations(word[1:], uppercase_count + 1)
-            upper_list = [word[0] + combination for combination in rest] + [word[0].upper() + combination for combination in upper_sub]
-            return upper_list[:self.args.max_words]
-        else:
-            return [word[0] + combination for combination in rest]
+    def _add_combinations(self, option_list):
+        #new_words = set()
+            #for combination in product(*option_list):
+            #new_words.add(''.join(combination))
+            if len(self._wordlist) > self.args.max_words:
+                return
+            self.wordlist = {''.join(combination) for combination in product(*option_list)}
 
-    def words_to_leet(self, wordlist):
-        leet_wordlist = []
-        for word in wordlist:
-            leet_wordlist.extend(self.generate_leet_combinations(word, 0))
-        return list(set(leet_wordlist))[:self.args.max_words]
+    def _add_leet_variations(self, word):
+        char_options_list = []
+        for ch in word:
+            options = [ch]
+            leet_equiv = self.leet_mapping.get(ch)
+            if leet_equiv:
+                options.append(leet_equiv)
+            char_options_list.append(options)
+        self._add_combinations(char_options_list)
     
-    def words_to_uppercase(self, wordlist):
-        uppercase_wordlist = []
-        for word in wordlist:
-            uppercase_wordlist.extend(self.generate_uppercase_combinations(word, 0))
-        return list(set(uppercase_wordlist))[:self.args.max_words]
+    def add_uppercase_and_leet_variations(self):
+        self.wordlist = {''.join(combination) for word in self._wordlist for combination in product(*[(ch.lower(), ch.upper()) for ch in word])}
+        with ThreadPoolExecutor() as executor:
+            executor.map(self._add_leet_variations, self.wordlist)
 
     def insert_chars(self, wordlist, charset, input_min, input_max):
         set_wordlist = set(wordlist)
