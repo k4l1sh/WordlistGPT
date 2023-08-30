@@ -54,20 +54,20 @@ After getting an OpenAI API key, create an .env file with `API_KEY=your_openai_a
 
 Generate 50 related words to 'love' from ChatGPT, set the minimum characters to 4 and maximum uppercase and leet variations to 2:
 ```bash
-python wordlistgpt.py -w love -n 50 -min 4 --uppercase 2 --leet 2
+python wordlistgpt.py -w 'love' -n 50 -min 4 --uppercase 2 --leet 2
 ```
 
 Generate 200 related words each for 'artificial intelligence' and 'cybersecurity' from ChatGPT, without any leet speak, uppercase, or random character variations, with a maximum word length of 30 and save it in a custom file 'ai_wordlist.txt':
 ```bash
-python wordlistgpt.py -w 'artificial intelligence' cybersecurity -n 200 -max 30 -u 0 -l 0 -r 0 -o ai_wordlist.txt
+python wordlistgpt.py -w 'artificial intelligence' 'cybersecurity '-n 200 -max 30 -u 0 -l 0 -r 0 -o ai_wordlist.txt
 ```
 
 Generate a wordlist based on the word '0123456789' without ChatGPT, use a maximum range of 10 random characters to be added with a custom random charset of '!@#$%' and random level to iterate 99999 times with the random characters variations to be inserted only in the end of the word:
 ```bash
-python wordlistgpt.py -w 0123456789 -n 0 -max 20 --random-chars 10 --random-charset '!@#$%' --random-level 99999 --random-weights 0 1 0
+python wordlistgpt.py -w '0123456789' -n 0 -max 20 --random-chars 10 --random-charset '!@#$%' --random-level 99999 --random-weights 0 1 0
 ```
 
-Run wordlistgpt.py directly from url for the word marvel with the default configurations and your OpenAI API key:
+Run wordlistgpt.py directly from url for the word 'marvel' with the default configurations and your OpenAI API key:
 ```bash
 curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python3 - -w marvel -k your_openai_api_key_here
 ```
