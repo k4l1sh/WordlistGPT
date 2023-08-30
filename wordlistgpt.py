@@ -66,7 +66,7 @@ def parse_arguments():
 
 def validate_args(args, openai_key):
     if not openai_key:
-        logging.warning("API_KEY is not set in the environment variables. To generate more related words with GPT, set it in the .env file with API_KEY=YOUR API KEY or enter as argument -k.")
+        logging.warning("API_KEY is not set in the environment variables. To generate more related words with GPT, set it in the .env file with API_KEY=YOUR API KEY or enter as an argument --key.")
     if not args.words:
         logging.error(
             "No words provided. Use -w or --words argument followed by one or more words.")

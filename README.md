@@ -12,7 +12,7 @@ Make custom wordlists using GPT in seconds
 
 ## Features
 - Use of ChatGPT to generate related words.
-- Fast generation of uppercase and l33t variations
+- Fast generation of uppercase and l33t variations.
 - Customizable word sizes, random character insertion, and more.
 
 ## Usage
@@ -23,15 +23,15 @@ cd WordlistGPT
 python wordlistgpt.py -w "hello world"
 ```
 
-You can also run directly from url if you are lazy:
+You can also run directly from url if you are feeling lazy:
 ```bash
 curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python - -w "hello world"
 ```
-A file named `wordlist.txt` will be created with the generated wordlist
+A file named `wordlist.txt` will be created with the generated wordlist.
 
 To take advantage of ChatGPT to generate related words, you need to get an OpenAI API key from [OpenAI API keys](https://platform.openai.com/account/api-keys).
 
-After getting an OpenAI API key, create an .env file with `API_KEY=your_openai_api_key_here` or run the script with OpenAI API key in the arguments `--key your_openai_api_key_here`
+After getting an OpenAI API key, create an .env file with `API_KEY=your_openai_api_key_here` or run the script with OpenAI API key in the arguments `--key your_openai_api_key_here`.
 
 ### Argument Details
 - `-w, --words`: Words to generate the wordlist for
