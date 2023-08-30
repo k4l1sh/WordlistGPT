@@ -6,7 +6,7 @@
 
 ## Overview
 
-Make custom wordlists using GPT in seconds
+Make custom wordlists using GPT in seconds:
 
 ![WordlistGPT Example](https://i.imgur.com/Cs50k52.png)
 
