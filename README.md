@@ -6,7 +6,7 @@
 
 ## Overview
 
-Make custom wordlists using GPT in seconds:
+Make custom wordlists using ChatGPT in seconds:
 
 ![WordlistGPT Example](https://i.imgur.com/Cs50k52.png)
 
@@ -20,12 +20,12 @@ Try wordlistgpt.py with a hello world:
 ```bash
 git clone https://github.com/k4l1sh/WordlistGPT.git
 cd WordlistGPT
-python wordlistgpt.py -w "hello world"
+python wordlistgpt.py -w 'hello world'
 ```
 
 You can also run directly from url if you are feeling lazy:
 ```bash
-curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python - -w "hello world"
+curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python - -w 'hello world'
 ```
 A file named `wordlist.txt` will be created with the generated wordlist.
 
