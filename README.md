@@ -4,74 +4,76 @@
 [![Releases](https://img.shields.io/github/release/k4l1sh/WordlistGPT.svg)](https://github.com/k4l1sh/WordlistGPT/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Make custom wordlists using ChatGPT to generate more words related to words you provide.
+## Overview
 
-<div align="center">
-  <img src="https://i.imgur.com/pzOzcUY.png" />
-</div>
+Make custom wordlists using GPT in seconds
 
-
-WordlistGPT is a versatile tool designed to generate wordlists using the ChatGPT API. It provides a wide range of customization options.
-
-## Prerequisites
-1. Python 3.x
-2. OpenAI API key for accessing the ChatGPT API.
-
-## Usage
-Create a .env file with `API_KEY=your_openai_api_key_here` or run the script with openai api key in the arguments `--key your_openai_api_key_here`
-```
-python wordlistgpt.py [OPTIONS]
-```
-or generate a wordlist directly from url
-```
-curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python - [OPTIONS]
-```
-
-### Command Line Arguments
-- `-w, --words`: Words to generate wordlist for.
-- `-k, --key`: OpenAI API Key.
-- `-n, --number`: Number of words to generate in ChatGPT for each word (default: 30).
-- `-m, --max-words`: Maximum number of words in the wordlist (default: 5000000).
-- `-min, --min-size`: Minimum amount of characters for each word (default: 6).
-- `-max, --max-size`: Maximum amount of characters for each word (default: 20).
-- `-o, --output`: Output file for the generated wordlist (default: output.txt).
-- `-u, --uppercase`: Maximum number of characters to convert to uppercase in each word (default: 2).
-- `-l, --leet`: Maximum number of leet characters to replace in each word (default: 2).
-- `-r, --random-chars`: Maximum range of random characters to be added (default: 2).
-- `-rc, --random-charset`: Charset of characters to be randomly added (default: 0123456789!@$&+_-.?/+;#).
+![WordlistGPT Example](https://i.imgur.com/Cs50k52.png)
 
 ## Features
-- Generates wordlists based on user-provided seed words.
-- Provides leet speak transformations.
-- Offers uppercase transformations for generated words.
-- Allows random character insertions with a customizable character set.
-- Wordlist size constraints to control the output size.
+- Use of ChatGPT to generate related words.
+- Fast generation of uppercase and l33t variations
+- Customizable word sizes, random character insertion, and more.
+
+## Usage
+Try wordlistgpt.py with a hello world
+```bash
+git clone https://github.com/k4l1sh/WordlistGPT.git
+cd WordlistGPT
+python wordlistgpt.py -w "hello world"
+```
+
+You can also run directly from url if you are lazy:
+```bash
+curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python - -w "hello world"
+```
+
+To take advantage of ChatGPT to generate related words, you need to get an OpenAI API key from [OpenAI API keys](https://platform.openai.com/account/api-keys).
+
+After you obtained an OpenAI API key, create a .env file with `API_KEY=your_openai_api_key_here` or run the script with openai api key in the arguments `--key your_openai_api_key_here`
+
+### Argument Details
+- `-w, --words`: Words to generate the wordlist for
+- `-n, --number`: Number of words to generate in ChatGPT for each word. (default: 20)
+- `-min, --min-size`: Minimum number of characters for each word. (default: 6)
+- `-max, --max-size`: Maximum number of characters for each word. (default: 14)
+- `-u, --uppercase`: Maximum number of characters to convert to uppercase in each word. (default: inf)
+- `-l, --leet`: Maximum number of leet characters to replace in each word. (default: inf)
+- `-lm, --leet-mapping`: JSON-formatted leet mapping dictionary. (default: provided)
+- `-r, --random-chars`: Maximum range of random characters to be added. (default: 6)
+- `-rc, --random-charset`: Charset of characters to be randomly added. (default: provided)
+- `-rl, --random-level`: Number of iterations of random characters to be added. (default: 3)
+- `-rw, --random-weights`: Weights for determining position of random character insertion. (default: 0.47, 0.47, 0.06)
+- `-k, --key`: OpenAI API Key. (default: None)
+- `-o, --output`: Output file for the generated wordlist. (default: `wordlist.txt`)
+- `-d, --debug`: If True, enable debug logging. (default: False)
+- `-s, --silent`: If True, disable logging. (default: False)
 
 ## More Examples
 
-Customize the maximum number of uppercase, leet and random characters variations
-```
-python wordlistgpt.py -w love -n 10 -u 99 -l 99 -r 16
-```
-
-Use words generated only from GPT and save it in a custom file
-```
-python wordlistgpt.py -w 'artificial intelligence' 'large language models' 'neural networks' -n 200 -u 0 -l 0 -r 0 -o ai_wordlist.txt
+Generate more 50 related words to 'love' from ChatGPT, set the minimum characters to 4 and maximum uppercase and leet variations to 2:
+```bash
+python wordlistgpt.py -w love -n 50 -min 4 --uppercase 2 --leet 2
 ```
 
-Generate a wordlist without GPT and with a custom random charset
-```
-python wordlistgpt.py -w 123456789 -n 0 -r 10 -rc '!@#$%' -rl 9999
+Generate more 200 ChatGPT related words each for 'artificial intelligence' and 'open source intelligence', without any leet speak, uppercase, or random character variations, with a maximum word length of 30. and save it in a custom file 'ai_wordlist.txt':
+```bash
+python wordlistgpt.py -w 'artificial intelligence' 'open source intelligence' -n 200 -max 30 -u 0 -l 0 -r 0 -o ai_wordlist.txt
 ```
 
-Run wordlistgpt.py directly from url
+Generate a wordlist based on the word '0123456789' without ChatGPT, use a maximum range of 10 random characters to be added with a custom random charset of '!@#$%' and random level to iterate 99999 times with the random characters variations to be inserted only in the end of the word:
+```bash
+python wordlistgpt.py -w 0123456789 -n 0 -max 20 -r 10 -rc '!@#$%' -rl 99999 -rw 0 1 0
+```
+
+Run wordlistgpt.py directly from url with the default configurations and your OpenAI API key:
 ```
 curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python3 - -w marvel -k your_openai_api_key_here
 ```
-
 
 ## Contributing
 Contributions are welcome! Please feel free to submit pull requests or raise issues.
 
 ## License
-MIT License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
