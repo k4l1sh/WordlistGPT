@@ -208,10 +208,11 @@ class WordlistGenerator:
             self.force_len(3, self.args.max_size)
             self.remove_non_words()
             self.estimate_words()
-            self.add_uppercase_variations()
-            if not self.wordlist_over_max_limit():
+            if not self.wordlist_over_max_limit() and self.args.uppercase > 0:
+                self.add_uppercase_variations()
+            if not self.wordlist_over_max_limit() and self.args.leet > 0:
                 self.add_leet_variations()
-            if not self.wordlist_over_max_limit():
+            if not self.wordlist_over_max_limit() and self.args.random_chars > 0:
                 self.insert_chars()
             self.force_len(self.args.min_size, self.args.max_size)
         except Exception:

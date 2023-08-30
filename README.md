@@ -16,7 +16,7 @@ Make custom wordlists using GPT in seconds
 - Customizable word sizes, random character insertion, and more.
 
 ## Usage
-Try wordlistgpt.py with a hello world
+Try wordlistgpt.py with a hello world:
 ```bash
 git clone https://github.com/k4l1sh/WordlistGPT.git
 cd WordlistGPT
@@ -27,10 +27,11 @@ You can also run directly from url if you are lazy:
 ```bash
 curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python - -w "hello world"
 ```
+A file named `wordlist.txt` will be created with the generated wordlist
 
 To take advantage of ChatGPT to generate related words, you need to get an OpenAI API key from [OpenAI API keys](https://platform.openai.com/account/api-keys).
 
-After you obtained an OpenAI API key, create a .env file with `API_KEY=your_openai_api_key_here` or run the script with openai api key in the arguments `--key your_openai_api_key_here`
+After getting an OpenAI API key, create an .env file with `API_KEY=your_openai_api_key_here` or run the script with OpenAI API key in the arguments `--key your_openai_api_key_here`
 
 ### Argument Details
 - `-w, --words`: Words to generate the wordlist for
@@ -51,23 +52,23 @@ After you obtained an OpenAI API key, create a .env file with `API_KEY=your_open
 
 ## More Examples
 
-Generate more 50 related words to 'love' from ChatGPT, set the minimum characters to 4 and maximum uppercase and leet variations to 2:
+Generate 50 related words to 'love' from ChatGPT, set the minimum characters to 4 and maximum uppercase and leet variations to 2:
 ```bash
 python wordlistgpt.py -w love -n 50 -min 4 --uppercase 2 --leet 2
 ```
 
-Generate more 200 ChatGPT related words each for 'artificial intelligence' and 'open source intelligence', without any leet speak, uppercase, or random character variations, with a maximum word length of 30. and save it in a custom file 'ai_wordlist.txt':
+Generate 200 related words each for 'artificial intelligence' and 'cybersecurity' from ChatGPT, without any leet speak, uppercase, or random character variations, with a maximum word length of 30 and save it in a custom file 'ai_wordlist.txt':
 ```bash
-python wordlistgpt.py -w 'artificial intelligence' 'open source intelligence' -n 200 -max 30 -u 0 -l 0 -r 0 -o ai_wordlist.txt
+python wordlistgpt.py -w 'artificial intelligence' cybersecurity -n 200 -max 30 -u 0 -l 0 -r 0 -o ai_wordlist.txt
 ```
 
 Generate a wordlist based on the word '0123456789' without ChatGPT, use a maximum range of 10 random characters to be added with a custom random charset of '!@#$%' and random level to iterate 99999 times with the random characters variations to be inserted only in the end of the word:
 ```bash
-python wordlistgpt.py -w 0123456789 -n 0 -max 20 -r 10 -rc '!@#$%' -rl 99999 -rw 0 1 0
+python wordlistgpt.py -w 0123456789 -n 0 -max 20 --random-chars 10 --random-charset '!@#$%' --random-level 99999 --random-weights 0 1 0
 ```
 
-Run wordlistgpt.py directly from url with the default configurations and your OpenAI API key:
-```
+Run wordlistgpt.py directly from url for the word marvel with the default configurations and your OpenAI API key:
+```bash
 curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python3 - -w marvel -k your_openai_api_key_here
 ```
 
