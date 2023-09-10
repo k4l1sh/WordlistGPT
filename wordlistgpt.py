@@ -50,13 +50,13 @@ def parse_arguments():
     special_options.add_argument('-l', '--leet', type=int, default=float('inf'), help='Maximum number of leet characters to replace in each word. (default: %(default)s)')
     special_options.add_argument('-lm', '--leet-mapping', type=str, default=json.dumps({'o': '0', 'i': '1', 'l': '1', 'z': '2', 'e': '3', 'a': '4', 's': '5', 'g': '6', 't': '7', 'b': '8', 'g': '9'}),
                                  help='JSON-formatted leet mapping dictionary. (default: %(default)s)')
-    special_options.add_argument('-d', '--deterministic-chars', type=int, default=1,
+    special_options.add_argument('-d', '--deterministic-chars', type=int, default=2,
                                  help='Number of deterministic characters to be added. (default: %(default)s)')
     special_options.add_argument('-dc', '--deterministic-charset', type=str, default=r'''0123456789_!@$%#''',
                                  help='Charset of deterministic characters to be added. (default: %(default)s)')
     special_options.add_argument('-r', '--random-chars', type=int, default=3, help='Maximum range of random characters to be added. (default: %(default)s)')
     special_options.add_argument('-rc', '--random-charset', type=str, default=r'''0123456789!@$&+_-.?/+;#''', help='Charset of characters to be randomly added. (default: %(default)s)')
-    special_options.add_argument('-rl', '--random-level', type=int, default=2, help='Number of iterations of random characters to be added. (default: %(default)s)')
+    special_options.add_argument('-rl', '--random-level', type=int, default=1, help='Number of iterations of random characters to be added. (default: %(default)s)')
     special_options.add_argument('-rw', '--random-weights', nargs=3, type=float, default=[0.47, 0.47, 0.06],
                                  help='''Weights for determining position of random character insertion. 
                                  First value: Probability for inserting at the beginning.
@@ -131,6 +131,7 @@ class WordlistGenerator:
         self._wordlist = set()
         self.batch_count = 0
         self.estimated_words_number = len(args.words)*(args.number+1)
+        self.estimated_storage_size = self.human_size((self.args.min_size + self.args.max_size) * self.estimated_words_number / 2)
         self.title_bar = "Progress:"
 
     @property
@@ -143,12 +144,13 @@ class WordlistGenerator:
             words = {words}
         self._wordlist.update(words)
         if len(self._wordlist) > self.args.batch_size:
-            self.print_progress_bar(len(self._wordlist)+self.batch_count, self.estimated_words_number, "Saving...")
+            if not self.args.silent:
+                self.print_progress_bar(len(self._wordlist)+self.batch_count, self.estimated_words_number, self.estimated_storage_size, "Saving...")
             self.save_wordlist()
             self.batch_count += len(self._wordlist)
             del self.wordlist
         if not self.args.silent: #and len(self._wordlist)%1000 == 0:
-            self.print_progress_bar(len(self._wordlist)+self.batch_count, self.estimated_words_number)
+            self.print_progress_bar(len(self._wordlist)+self.batch_count, self.estimated_words_number, self.estimated_storage_size)
 
     @wordlist.deleter
     def wordlist(self):
@@ -187,8 +189,8 @@ class WordlistGenerator:
             executor.map(self.words_from_gpt, self.args.words, [self.args.number]*len(self.args.words))
         self.generate_wordlist()
         if not self.args.silent:
-            self.print_progress_bar(len(self._wordlist), len(self._wordlist))
-            print("\r", end='')
+            self.print_progress_bar(len(self._wordlist), len(self._wordlist), self.estimated_storage_size, "Completed")
+            print("\r" + " " * 80 + "\r", end='')
         logging.info(f"A total of {len(self._wordlist)+self.batch_count} words have been saved in {self.args.output}")
         logging.info(f"Elapsed time: {round(perf_counter()-start, 2)} seconds.")
 
@@ -310,13 +312,20 @@ class WordlistGenerator:
         if self.args.random_chars:
             total *= 1 + self.args.random_level*0.9
         self.estimated_words_number = int(total)
+        self.estimated_storage_size = self.human_size((self.args.min_size + self.args.max_size) * self.estimated_words_number / 2)
+
+    def human_size(self, size, units=[' B', ' KB', ' MB', ' GB', ' TB', ' PB', ' EB']):
+        if size < 1024:
+            return f"{size:.2f}{units[0]}"
+        else:
+            return self.human_size(size / 1024, units[1:])
 
     @staticmethod
-    def print_progress_bar(iteration, total, title="Progress:", bar_length=20):
+    def print_progress_bar(iteration, total, bytes_size, title="Progress:", bar_length=20):
         max_total = max(1, iteration, total)
         percentage = (iteration / max_total) * 100
         block = int(round(bar_length * iteration / max_total))
-        text = f"\033[1;32m[+]\033[0m {title} [{'#' * block}{'-' * (bar_length - block)}] {round(percentage, 2)}% ({iteration}/{max_total})\033[K"
+        text = f"\033[1;32m[+]\033[0m {title} [{'#' * block}{'-' * (bar_length - block)}] {round(percentage, 2)}% ({iteration}/{max_total}) ~ {bytes_size}\033[K"
         print(text, end='\r' , flush=True)
 
     def save_wordlist(self):
