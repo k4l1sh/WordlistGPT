@@ -43,15 +43,20 @@ def parse_arguments():
     size_options = parser.add_argument_group('Size Options', 'Control the size of the words and the wordlist.')
     size_options.add_argument('-min', '--min-size', type=int, default=6, help='Minimum amount of characters for each word. (default: %(default)s)')
     size_options.add_argument('-max', '--max-size', type=int, default=14, help='Maximum amount of characters for each word. (default: %(default)s)')
-    size_options.add_argument('-m', '--max-words', type=int, default=10000000, help='Maximum number of words in the wordlist. (default: %(default)s)')
+    size_options.add_argument('-m', '--max-words', type=int, default=10000000, help='Maximum number of words in the wordlist if not batched. (default: %(default)s)')
+    size_options.add_argument('-b', '--batch_size', type=int, default=1000000, help='Batch size for wordlist processing. (default: %(default)s)')
     special_options = parser.add_argument_group('Special Options', 'Control the special characters and casing in words.')
     special_options.add_argument('-u', '--uppercase', type=int, default=float('inf'), help='Maximum number of characters to convert to uppercase in each word. (default: %(default)s)')
     special_options.add_argument('-l', '--leet', type=int, default=float('inf'), help='Maximum number of leet characters to replace in each word. (default: %(default)s)')
     special_options.add_argument('-lm', '--leet-mapping', type=str, default=json.dumps({'o': '0', 'i': '1', 'l': '1', 'z': '2', 'e': '3', 'a': '4', 's': '5', 'g': '6', 't': '7', 'b': '8', 'g': '9'}),
                                  help='JSON-formatted leet mapping dictionary. (default: %(default)s)')
-    special_options.add_argument('-r', '--random-chars', type=int, default=6, help='Maximum range of random characters to be added. (default: %(default)s)')
+    special_options.add_argument('-d', '--deterministic-chars', type=int, default=1,
+                                 help='Number of deterministic characters to be added. (default: %(default)s)')
+    special_options.add_argument('-dc', '--deterministic-charset', type=str, default=r'''0123456789_!@$%#''',
+                                 help='Charset of deterministic characters to be added. (default: %(default)s)')
+    special_options.add_argument('-r', '--random-chars', type=int, default=3, help='Maximum range of random characters to be added. (default: %(default)s)')
     special_options.add_argument('-rc', '--random-charset', type=str, default=r'''0123456789!@$&+_-.?/+;#''', help='Charset of characters to be randomly added. (default: %(default)s)')
-    special_options.add_argument('-rl', '--random-level', type=int, default=3, help='Number of iterations of random characters to be added. (default: %(default)s)')
+    special_options.add_argument('-rl', '--random-level', type=int, default=2, help='Number of iterations of random characters to be added. (default: %(default)s)')
     special_options.add_argument('-rw', '--random-weights', nargs=3, type=float, default=[0.47, 0.47, 0.06],
                                  help='''Weights for determining position of random character insertion. 
                                  First value: Probability for inserting at the beginning.
@@ -60,7 +65,7 @@ def parse_arguments():
     other_options = parser.add_argument_group('Other Options')
     other_options.add_argument('-k', '--key', type=str, help='OpenAI API Key. (default: %(default)s)', default=None)
     other_options.add_argument('-o', '--output', type=str, default='wordlist.txt',help='Output file for the generated wordlist. (default: %(default)s)')
-    other_options.add_argument('-d', '--debug', action='store_true', default=False, help='If True, enable debug logging. (default: %(default)s)')
+    other_options.add_argument('-v', '--debug', action='store_true', default=False, help='If True, enable debug logging. (default: %(default)s)')
     other_options.add_argument('-s', '--silent', action='store_true', default=False, help='If True, disable logging. (default: %(default)s)')
     return parser.parse_args()
 
@@ -124,7 +129,9 @@ class WordlistGenerator:
         self.gpt_endpoint = "https://api.openai.com/v1/chat/completions"
         self.leet_mapping = json.loads(args.leet_mapping)
         self._wordlist = set()
+        self.batch_count = 0
         self.estimated_words_number = len(args.words)*(args.number+1)
+        self.title_bar = "Progress:"
 
     @property
     def wordlist(self):
@@ -135,8 +142,13 @@ class WordlistGenerator:
         if not isinstance(words, (set, list, tuple)):
             words = {words}
         self._wordlist.update(words)
-        if not self.args.silent and len(self._wordlist)%1000 == 0:
-            self.print_progress_bar(len(self._wordlist), self.estimated_words_number)
+        if len(self._wordlist) > self.args.batch_size:
+            self.print_progress_bar(len(self._wordlist)+self.batch_count, self.estimated_words_number, "Saving...")
+            self.save_wordlist()
+            self.batch_count += len(self._wordlist)
+            del self.wordlist
+        if not self.args.silent: #and len(self._wordlist)%1000 == 0:
+            self.print_progress_bar(len(self._wordlist)+self.batch_count, self.estimated_words_number)
 
     @wordlist.deleter
     def wordlist(self):
@@ -176,7 +188,8 @@ class WordlistGenerator:
         self.generate_wordlist()
         if not self.args.silent:
             self.print_progress_bar(len(self._wordlist), len(self._wordlist))
-            print("")
+            print("\r", end='')
+        logging.info(f"A total of {len(self._wordlist)+self.batch_count} words have been saved in {self.args.output}")
         logging.info(f"Elapsed time: {round(perf_counter()-start, 2)} seconds.")
 
     def words_from_gpt(self, word, num_words):
@@ -212,21 +225,23 @@ class WordlistGenerator:
                 self.add_uppercase_variations()
             if not self.wordlist_over_max_limit() and self.args.leet > 0:
                 self.add_leet_variations()
+            if not self.wordlist_over_max_limit() and self.args.deterministic_chars > 0:
+                self.insert_deterministic_chars()
             if not self.wordlist_over_max_limit() and self.args.random_chars > 0:
-                self.insert_chars()
+                self.insert_random_chars()
             self.force_len(self.args.min_size, self.args.max_size)
         except Exception:
             logging.error("An error occurred during wordlist generation", exc_info=True)
 
     def add_uppercase_variations(self):
-        limited_uppercase_wordlist = set()
         for word in self.wordlist:
+            limited_uppercase_wordlist = set()
             if self.wordlist_over_max_limit():
                 return
             for combination in product(*[(ch.lower(), ch.upper()) for ch in word]):
                 if sum(1 for c in combination if c.isupper()) <= self.args.uppercase:
                     limited_uppercase_wordlist.add(''.join(combination))
-        self.wordlist = limited_uppercase_wordlist
+            self.wordlist = limited_uppercase_wordlist
 
     def add_leet_variations(self):
         for word in self.wordlist:
@@ -243,11 +258,11 @@ class WordlistGenerator:
                 char_options_list.append(options)
             self.wordlist = {''.join(combination) for combination in product(*char_options_list)}
 
-    def insert_chars(self):
+    def insert_random_chars(self):
+        new_words = set()
         for word in self.wordlist:
             if self.wordlist_over_max_limit():
                 return
-            new_words = set()
             for _ in range(self.args.random_level):
                 new_word = word
                 num_chars = random.randint(0, self.args.random_chars)
@@ -261,7 +276,23 @@ class WordlistGenerator:
                     )[0]
                     new_word = new_word[:position] + char + new_word[position:]
                 new_words.add(new_word)
-            self.wordlist = new_words
+                if len(new_words) > 10000:
+                    self.wordlist = new_words
+                    new_words.clear()
+        self.wordlist = new_words
+
+    def insert_deterministic_chars(self):
+        new_words = set()
+        for word in self.wordlist:
+            for num_chars in range(1, max(1,self.args.deterministic_chars) + 1):
+                combinations = [''.join(x) for x in product(self.args.deterministic_charset, repeat=num_chars)]   
+                for combination in combinations:
+                    new_words.add(word + combination)
+                    new_words.add(combination + word)
+                    if len(new_words) > 10000:
+                        self.wordlist = new_words
+                        new_words.clear()
+        self.wordlist = new_words
 
     def estimate_words(self):
         total = 0
@@ -274,22 +305,24 @@ class WordlistGenerator:
                     possibilities.add(leet_equiv)    
                 possibilities_for_each_char.append(len(possibilities))  
             total += reduce(lambda x, y: x * y, possibilities_for_each_char)
+        if self.args.deterministic_chars:
+            total *= 2 * len(self.args.deterministic_charset) ** self.args.deterministic_chars
         if self.args.random_chars:
             total *= 1 + self.args.random_level*0.9
         self.estimated_words_number = int(total)
 
     @staticmethod
-    def print_progress_bar(iteration, total, bar_length=20):
-        max_total = max(iteration, total)
+    def print_progress_bar(iteration, total, title="Progress:", bar_length=20):
+        max_total = max(1, iteration, total)
         percentage = (iteration / max_total) * 100
         block = int(round(bar_length * iteration / max_total))
-        text = f"\033[1;32m[+]\033[0m Progress: [{'#' * block}{'-' * (bar_length - block)}] {round(percentage, 2)}% ({iteration}/{max_total})\033[K"
+        text = f"\033[1;32m[+]\033[0m {title} [{'#' * block}{'-' * (bar_length - block)}] {round(percentage, 2)}% ({iteration}/{max_total})\033[K"
         print(text, end='\r' , flush=True)
 
     def save_wordlist(self):
-        with open(self.args.output, 'w') as file:
-            file.write('\n'.join(self.wordlist))
-        logging.info(f"A total of {len(self._wordlist)} words have been saved in {self.args.output}")
+        with open(self.args.output, 'a') as file:
+            for word in self.wordlist:
+                file.write(f"{word}\n")
 
 
 if __name__ == '__main__':
