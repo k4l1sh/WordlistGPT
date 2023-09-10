@@ -10,22 +10,6 @@ import json
 import re
 import os
 
-def main():
-    load_env()
-    args = parse_arguments()
-    set_logger(args)
-    openai_key = args.key or os.getenv("API_KEY")
-    if not validate_args(args, openai_key):
-        return
-    args_dict = vars(args).copy()
-    if openai_key:
-        args_dict['key'] = f"{openai_key[:3]}...{openai_key[-4:]}"
-    logging.debug(f"Arguments parsed: {args_dict}")
-    logging.info("Starting WordlistGPT...")
-    wordlist_generator = WordlistGenerator(args, openai_key)
-    wordlist_generator.orchestrate_threads()
-    wordlist_generator.save_wordlist()
-
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description='''Generate wordlists using a variety of options. 
@@ -54,6 +38,8 @@ def parse_arguments():
                                  help='Number of deterministic characters to be added. (default: %(default)s)')
     special_options.add_argument('-dc', '--deterministic-charset', type=str, default=r'''0123456789_!@$%#''',
                                  help='Charset of deterministic characters to be added. (default: %(default)s)')
+    special_options.add_argument('-dp', '--deterministic-position', action='append', choices=['left', 'right', 'nested'], default=['left', 'right'],
+                             help='Position for inserting deterministic characters. Can specify multiple options: left, right, nested. E.g., "-dp left -dp right" for both sides.')
     special_options.add_argument('-r', '--random-chars', type=int, default=3, help='Maximum range of random characters to be added. (default: %(default)s)')
     special_options.add_argument('-rc', '--random-charset', type=str, default=r'''0123456789!@$&+_-.?/+;#''', help='Charset of characters to be randomly added. (default: %(default)s)')
     special_options.add_argument('-rl', '--random-level', type=int, default=1, help='Number of iterations of random characters to be added. (default: %(default)s)')
@@ -68,6 +54,22 @@ def parse_arguments():
     other_options.add_argument('-v', '--debug', action='store_true', default=False, help='If True, enable debug logging. (default: %(default)s)')
     other_options.add_argument('-s', '--silent', action='store_true', default=False, help='If True, disable logging. (default: %(default)s)')
     return parser.parse_args()
+
+def main():
+    load_env()
+    args = parse_arguments()
+    set_logger(args)
+    openai_key = args.key or os.getenv("API_KEY")
+    if not validate_args(args, openai_key):
+        return
+    args_dict = vars(args).copy()
+    if openai_key:
+        args_dict['key'] = f"{openai_key[:3]}...{openai_key[-4:]}"
+    logging.debug(f"Arguments parsed: {args_dict}")
+    logging.info("Starting WordlistGPT...")
+    wordlist_generator = WordlistGenerator(args, openai_key)
+    wordlist_generator.orchestrate_threads()
+    wordlist_generator.save_wordlist()
 
 def validate_args(args, openai_key):
     if not openai_key:
@@ -149,7 +151,7 @@ class WordlistGenerator:
             self.save_wordlist()
             self.batch_count += len(self._wordlist)
             del self.wordlist
-        if not self.args.silent: #and len(self._wordlist)%1000 == 0:
+        if not self.args.silent:
             self.print_progress_bar(len(self._wordlist)+self.batch_count, self.estimated_words_number, self.estimated_storage_size)
 
     @wordlist.deleter
@@ -285,15 +287,25 @@ class WordlistGenerator:
 
     def insert_deterministic_chars(self):
         new_words = set()
+        combinations = []
+        for num_chars in range(1, max(1,self.args.deterministic_chars) + 1):
+            combinations.extend([''.join(x) for x in product(self.args.deterministic_charset, repeat=num_chars)])
         for word in self.wordlist:
-            for num_chars in range(1, max(1,self.args.deterministic_chars) + 1):
-                combinations = [''.join(x) for x in product(self.args.deterministic_charset, repeat=num_chars)]   
-                for combination in combinations:
+            for combination in combinations:
+                if 'right' in self.args.deterministic_position:
                     new_words.add(word + combination)
+                if 'left' in self.args.deterministic_position:
                     new_words.add(combination + word)
-                    if len(new_words) > 10000:
-                        self.wordlist = new_words
-                        new_words.clear()
+                if 'nested' in self.args.deterministic_position:
+                    for nested_comb in combinations:
+                        new_words.add(nested_comb + word + combination)
+                        new_words.add(combination + word + nested_comb)
+                        if len(new_words) > 10000:
+                            self.wordlist = new_words
+                            new_words.clear()
+                if len(new_words) > 10000:
+                    self.wordlist = new_words
+                    new_words.clear()
         self.wordlist = new_words
 
     def estimate_words(self):
@@ -308,7 +320,7 @@ class WordlistGenerator:
                 possibilities_for_each_char.append(len(possibilities))  
             total += reduce(lambda x, y: x * y, possibilities_for_each_char)
         if self.args.deterministic_chars:
-            total *= 2 * len(self.args.deterministic_charset) ** self.args.deterministic_chars
+            total *= 2 * len(self.args.deterministic_charset) ** self.args.deterministic_chars ** self.args.deterministic_chars
         if self.args.random_chars:
             total *= 1 + self.args.random_level*0.9
         self.estimated_words_number = int(total)
