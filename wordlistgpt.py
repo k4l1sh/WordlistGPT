@@ -320,7 +320,11 @@ class WordlistGenerator:
                 possibilities_for_each_char.append(len(possibilities))  
             total += reduce(lambda x, y: x * y, possibilities_for_each_char)
         if self.args.deterministic_chars:
-            total *= 2 * len(self.args.deterministic_charset) ** self.args.deterministic_chars ** self.args.deterministic_chars
+            deterministic_combinations = len(self.args.deterministic_charset) ** self.args.deterministic_chars
+            if 'nested' in self.args.deterministic_position:
+                total *= 2 + deterministic_combinations ** 2
+            else:
+                total *= 2 * deterministic_combinations
         if self.args.random_chars:
             total *= 1 + self.args.random_level*0.9
         self.estimated_words_number = int(total)
