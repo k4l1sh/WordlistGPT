@@ -129,7 +129,10 @@ python wordlistgpt.py -w qwerty -n 0 -l 0 -d 3 -r 0 -dc 'abcdefghijklmnopqrstuvw
 python wordlistgpt.py -w '0123456789' -n 0 -d 0 --random-chars 3 --random-charset '!@#$%' --random-level 999 --random-weights 0 1 0
 ```
 ---
-Run wordlistgpt.py directly from url for the word 'marvel' with the default configurations and your OpenAI API key:
+### Create wordlist for words related to "marvel" running from URL
+- Fetch and run the script directly from URL.
+- Generate words related to "marvel" using default configurations.
+- Use your OpenAI API key in the arguments.
 ```bash
 curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python3 - -w marvel -k your_openai_api_key_here
 ```
