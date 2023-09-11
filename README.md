@@ -122,8 +122,8 @@ Output:
 `grep '@_romance' wordlist.txt && wc -l wordlist.txt && du -h wordlist.txt`
 ```bash
 @_romance
-4352133     wordlist.txt
-50M         wordlist.txt
+4352133 wordlist.txt
+50M     wordlist.txt
 ```
 ---
 ### **Create wordlist from "change" with characters insertions in the right**
@@ -139,8 +139,8 @@ Output:
 `grep 'cH4nG3@123!' wordlist.txt && wc -l wordlist.txt && du -h wordlist.txt`
 ```bash
 cH4nG3@123!
-483183576       wordlist.txt
-5,4G            wordlist.txt
+483183576   wordlist.txt
+5,4G        wordlist.txt
 ```
 ---
 ### **Create only AI and cybersecurity related words**
@@ -156,8 +156,8 @@ Output:
 `echo $(head -n 20 ai_wordlist.txt | tr '\n' ' ') && wc -w ai_wordlist.txt && du -h ai_wordlist.txt`
 ```bash
 activity activityrecognition advanced advancedpersistentthreat agentbasedmodeling agents algorithm algorithms analysis analyst analytics anomaly anomalydetection antivirus application applications applicationsecuritytesting architectures artificial artificialcreativity artificialintelligence artificialintelligenceethics artificialneuralnetworks assessment assistant assistants assisted attack augmented augmentedreality
-531         ai_wordlist.txt
-8,0K        ai_wordlist.txt
+531     ai_wordlist.txt
+8,0K    ai_wordlist.txt
 ```
 ---
 ### **Create wordlist from "qwerty" with deterministic insertions**
@@ -174,8 +174,8 @@ Output:
 `grep 'QweRtY_$%' qwerty_wordlist.txt && wc -w qwerty_wordlist.txt && du -h qwerty_wordlist.txt`
 ```bash
 QweRtY_$%
-9714496     qwerty_wordlist.txt
-93M         qwerty_wordlist.txt
+9714496 qwerty_wordlist.txt
+93M     qwerty_wordlist.txt
 ```
 ---
 ### **Custom wordlist from "0123456789" with random insertions**
@@ -189,8 +189,8 @@ Output:
 `grep '0123456789!@@' wordlist.txt && wc -w wordlist.txt && du -h wordlist.txt`
 ```bash
 0123456789!@@
-142         wordlist.txt
-4,0K        wordlist.txt
+142     wordlist.txt
+4,0K    wordlist.txt
 ```
 ---
 ### **Create wordlist from "admin"**
@@ -208,8 +208,8 @@ Output:
 `grep '%4dMiN_' wordlist.txt && wc -w wordlist.txt && du -h wordlist.txt`
 ```bash
 %4dMiN_
-352728      wordlist.txt
-2,7M        wordlist.txt
+352728  wordlist.txt
+2,7M    wordlist.txt
 ```
 ---
 ### **Create wordlist for words related to "marvel" running from URL**
