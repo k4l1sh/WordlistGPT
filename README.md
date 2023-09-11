@@ -12,7 +12,7 @@ Make custom wordlists using ChatGPT for related words in seconds:
 
 ## Features
 - Use of ChatGPT to generate related words.
-- Fast generation of uppercase variations, l33t variations and characters insertion.
+- Fast generation of uppercase variations, l33t variations and character insertions.
 - Customizable word sizes, batch saving, and more.
 
 ## Usage
