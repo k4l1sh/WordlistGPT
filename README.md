@@ -86,9 +86,9 @@ The Wordlist Generator follows a systematic process to generate a wordlist that 
 ## Examples
 
 ### **Basic usage with related words to "harry potter"**
-- Default configurations
+- Default configurations with 2 deterministic character insertions instead of 1
 ```bash
-python wordlistgpt.py -w 'harry potter
+python wordlistgpt.py -w 'harry potter' -d 2
 ```
 Output:
 
@@ -115,7 +115,7 @@ vOldEMOrt25
 - Words can have at least 4 characters.
 - Apply a maximum of 2 uppercase and leet variations.
 ```bash
-python wordlistgpt.py -w 'love' -n 50 -min 4 --uppercase 2 --leet 2
+python wordlistgpt.py -w 'love' -n 50 -min 4 --uppercase 2 --leet 2 -d 2
 ```
 Output:
 
@@ -201,7 +201,7 @@ Output:
 - Positions for deterministic characters: left, right, and nested in the left and right.
 - No random character variations.
 ```bash
-python wordlistgpt.py -w 'admin' -n 0 -dc 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_!@$%#&' -d 1 -dp left -dp right -dp nested
+python wordlistgpt.py -w 'admin' -n 0 -dc 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_!@$%#&' -dp left -dp right -dp nested
 ```
 Output:
 
@@ -218,6 +218,12 @@ Output:
 - Use your OpenAI API key in the arguments.
 ```bash
 curl -sSL https://raw.githubusercontent.com/k4l1sh/WordlistGPT/main/wordlistgpt.py | python3 - -w marvel -k your_openai_api_key_here
+```
+`grep 'Av3nG3rs_' wordlist.txt && wc -w wordlist.txt && du -h wordlist.txt`
+```bash
+Av3nG3rs_
+10597968 wordlist.txt
+144M wordlist.txt
 ```
 ---
 ## Contributing
