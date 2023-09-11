@@ -34,7 +34,7 @@ def parse_arguments():
     special_options.add_argument('-l', '--leet', type=int, default=float('inf'), help='Maximum number of leet characters to replace in each word. (default: %(default)s)')
     special_options.add_argument('-lm', '--leet-mapping', type=str, default=json.dumps({'o': '0', 'i': '1', 'l': '1', 'z': '2', 'e': '3', 'a': '4', 's': '5', 'g': '6', 't': '7', 'b': '8', 'g': '9'}),
                                  help='JSON-formatted leet mapping dictionary. (default: %(default)s)')
-    special_options.add_argument('-d', '--deterministic-chars', type=int, default=2,
+    special_options.add_argument('-d', '--deterministic-chars', type=int, default=1,
                                  help='Number of deterministic characters to be added. (default: %(default)s)')
     special_options.add_argument('-dc', '--deterministic-charset', type=str, default=r'''0123456789_!@$%#''',
                                  help='Charset of deterministic characters to be added. (default: %(default)s)')
