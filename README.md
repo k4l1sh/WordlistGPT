@@ -6,9 +6,9 @@
 
 ## Overview
 
-Make custom wordlists using ChatGPT in seconds:
+Make custom wordlists using ChatGPT for related words in seconds:
 
-![WordlistGPT Example](https://i.imgur.com/Cs50k52.png)
+![WordlistGPT Example](https://i.imgur.com/jCiuhuF.png)
 
 ## Features
 - Use of ChatGPT to generate related words.
@@ -74,7 +74,7 @@ The Wordlist Generator follows a systematic process to generate a wordlist that 
 - `-u, --uppercase`: Maximum number of characters to convert to uppercase in each word. (default: inf)
 - `-l, --leet`: Maximum number of leet characters to replace in each word. (default: inf)
 - `-lm, --leet-mapping`: JSON-formatted leet mapping dictionary. (default: provided)
-- `-r, --random-chars`: Maximum range of random characters to be added. (default: 3)
+- `-r, --random-chars`: Maximum number of random characters to be added. (default: 0)
 - `-rc, --random-charset`: Charset of characters to be randomly added. (default: '0123456789!@$&+_-.?/+;#')
 - `-rl, --random-level`: Number of iterations of random characters to be added. (default: 1)
 - `-rw, --random-weights`: Weights for determining position of random character insertion. (default: 0.47, 0.47, 0.06)
@@ -83,27 +83,67 @@ The Wordlist Generator follows a systematic process to generate a wordlist that 
 - `-v, --debug`: If True, enable debug logging. (default: False)
 - `-s, --silent`: If True, disable logging. (default: False)
 
-## More Examples
+## Examples
 
+### **Basic usage with related words to "harry potter"**
+- Default configurations
+```bash
+python wordlistgpt.py -w 'harry potter
+```
+Output:
+
+`grep 'DumBl3doRe_9' wordlist.txt && wc -l wordlist.txt && du -h wordlist.txt`
+```bash
+DumBl3doRe_9
+100300392 wordlist.txt
+1,3G wordlist.txt
+```
+Amount of variations of "voldemort":
+
+`grep -i "voldemort" wordlist.txt | wc -l && grep -i "voldemort" wordlist.txt | shuf -n 5`
+```bash
+279040
+vOlDEMORt$%
+voldeMoRt23
+VoLdEMoRt6$
+vOldEMORt76
+vOldEMOrt25
+```
 ---
-### Generate words related to "love"
+### **Generate 50 words related to "love" with some modifications**
 - Get 50 words related to "love" from ChatGPT.
 - Words can have at least 4 characters.
 - Apply a maximum of 2 uppercase and leet variations.
 ```bash
 python wordlistgpt.py -w 'love' -n 50 -min 4 --uppercase 2 --leet 2
 ```
+Output:
+
+`grep '@_romance' wordlist.txt && wc -l wordlist.txt && du -h wordlist.txt`
+```bash
+@_romance
+4352133 wordlist.txt
+50M	wordlist.txt
+```
 ---
-### Create wordlist from "change" 
+### **Create wordlist from "change" with characters insertions in the right**
 - Base word: "change"
 - No related words from ChatGPT.
 - No random characters insertion.
 - Add up to 5 deterministic characters from the charset '0123456789_!@$%#' to be added only in the right.
 ```bash
-python wordlistgpt.py -w 'change' -n 0 -r 0 -d 5 -dc '0123456789_!@$%#' -dp 'right'
+python wordlistgpt.py -w 'change' -n 0 -d 5 -dc '0123456789_!@$%#' -dp 'right'
+```
+Output:
+
+`grep 'cH4nG3@123!' wordlist.txt && wc -l wordlist.txt && du -h wordlist.txt`
+```bash
+cH4nG3@123!
+483183576 wordlist.txt
+5,4G wordlist.txt
 ```
 ---
-### AI and cybersecurity related words
+### **Create only AI and cybersecurity related words**
 - Get 200 words each related to "artificial intelligence" and "cybersecurity".
 - Limit words to 30 characters.
 - Remove all leet, uppercase, deterministic and random characters variations.
@@ -111,25 +151,68 @@ python wordlistgpt.py -w 'change' -n 0 -r 0 -d 5 -dc '0123456789_!@$%#' -dp 'rig
 ```bash
 python wordlistgpt.py -w 'artificial intelligence' 'cybersecurity ' -n 200 -max 30 -u 0 -l 0 -d 0 -r 0 -o ai_wordlist.txt
 ```
+Output:
+
+`echo $(head -n 20 ai_wordlist.txt | tr '\n' ' ') && wc -w ai_wordlist.txt && du -h ai_wordlist.txt`
+```bash
+activity activityrecognition advanced advancedpersistentthreat agentbasedmodeling agents algorithm algorithms analysis analyst analytics anomaly anomalydetection antivirus application applications applicationsecuritytesting architectures artificial artificialcreativity artificialintelligence artificialintelligenceethics artificialneuralnetworks assessment assistant assistants assisted attack augmented augmentedreality
+531 ai_wordlist.txt
+8,0K ai_wordlist.txt
+```
 ---
-### Create wordlist from "qwerty" 
+### **Create wordlist from "qwerty" with deterministic insertions**
 - Base word: "qwerty"
 - No related words from ChatGPT.
 - Remove leet and random variations
 - Add up to 3 deterministic characters from the charset 'abcdefghijklmnopqrstuvwxyz0123456789_!@$%#' to be added in the left and right.
 - Save the results in "qwerty_wordlist.txt".
 ```bash
-python wordlistgpt.py -w qwerty -n 0 -l 0 -d 3 -r 0 -dc 'abcdefghijklmnopqrstuvwxyz0123456789_!@$%#' -o qwerty_wordlist.txt
+python wordlistgpt.py -w qwerty -n 0 -l 0 -d 3 -dc 'abcdefghijklmnopqrstuvwxyz0123456789_!@$%#' -o qwerty_wordlist.txt
+```
+Output:
+
+`grep 'QweRtY_$%' qwerty_wordlist.txt && wc -w qwerty_wordlist.txt && du -h qwerty_wordlist.txt`
+```bash
+QweRtY_$%
+9714496 qwerty_wordlist.txt
+93M	qwerty_wordlist.txt`
 ```
 ---
-### Custom wordlist from "0123456789"
+### **Custom wordlist from "0123456789" with random insertions**
 - Base word: "0123456789"
 - Add up to 3 random characters from "!@#$%" iterating this process 999 times, inserting it only in the end.
 ```bash
 python wordlistgpt.py -w '0123456789' -n 0 -d 0 --random-chars 3 --random-charset '!@#$%' --random-level 999 --random-weights 0 1 0
 ```
+Output:
+
+`grep '0123456789!@@' wordlist.txt && wc -w wordlist.txt && du -h wordlist.txt`
+```bash
+0123456789!@@
+142 wordlist.txt
+4,0K wordlist.txt
+```
 ---
-### Create wordlist for words related to "marvel" running from URL
+### **Create wordlist from "admin"**
+- Base word: "admin".
+- Do not fetch related words from ChatGPT.
+- Create all leet and uppercase variations
+- Add up to 1 deterministic characters from the charset 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_!@$%#&'.
+- Positions for deterministic characters: left, right, and nested in the left and right.
+- No random character variations.
+```bash
+python wordlistgpt.py -w 'admin' -n 0 -dc 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_!@$%#&' -d 1 -dp left -dp right -dp nested
+```
+Output:
+
+`grep '%4dMiN_' wordlist.txt && wc -w wordlist.txt && du -h wordlist.txt`
+```bash
+%4dMiN_
+352728 wordlist.txt
+2,7M wordlist.txt
+```
+---
+### **Create wordlist for words related to "marvel" running from URL**
 - Fetch and run the script directly from URL.
 - Generate words related to "marvel" using default configurations.
 - Use your OpenAI API key in the arguments.

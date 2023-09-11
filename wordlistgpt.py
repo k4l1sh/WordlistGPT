@@ -17,7 +17,7 @@ def parse_arguments():
         ''',
         epilog='''Examples:
         python wordlistgpt.py -w "harry potter"
-        python wordlistgpt.py -w cybersecurity -n 50 -min 5 -max 15 -u 2 -l 3 -r 2
+        python wordlistgpt.py -w cybersecurity -n 50 -min 5 -max 15 -u 2 -l 3 -d 1 -r 1
         ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -40,7 +40,7 @@ def parse_arguments():
                                  help='Charset of deterministic characters to be added. (default: %(default)s)')
     special_options.add_argument('-dp', '--deterministic-position', action='append', choices=['left', 'right', 'nested'], default=['left', 'right'],
                              help='Position for inserting deterministic characters. Can specify multiple options: left, right, nested. E.g., "-dp left -dp right" for both sides.')
-    special_options.add_argument('-r', '--random-chars', type=int, default=3, help='Maximum range of random characters to be added. (default: %(default)s)')
+    special_options.add_argument('-r', '--random-chars', type=int, default=0, help='Maximum range of random characters to be added. (default: %(default)s)')
     special_options.add_argument('-rc', '--random-charset', type=str, default=r'''0123456789!@$&+_-.?/+;#''', help='Charset of characters to be randomly added. (default: %(default)s)')
     special_options.add_argument('-rl', '--random-level', type=int, default=1, help='Number of iterations of random characters to be added. (default: %(default)s)')
     special_options.add_argument('-rw', '--random-weights', nargs=3, type=float, default=[0.47, 0.47, 0.06],
@@ -233,7 +233,6 @@ class WordlistGenerator:
                 self.insert_deterministic_chars()
             if not self.wordlist_over_max_limit() and self.args.random_chars > 0:
                 self.insert_random_chars()
-            self.force_len(self.args.min_size, self.args.max_size)
         except Exception:
             logging.error("An error occurred during wordlist generation", exc_info=True)
 
@@ -345,6 +344,7 @@ class WordlistGenerator:
         print(text, end='\r' , flush=True)
 
     def save_wordlist(self):
+        self.force_len(self.args.min_size, self.args.max_size)
         with open(self.args.output, 'a') as file:
             for word in self.wordlist:
                 file.write(f"{word}\n")
