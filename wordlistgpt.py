@@ -222,7 +222,6 @@ class WordlistGenerator:
     def generate_wordlist(self):
         try:
             self.split_subwords()
-            self.force_len(3, self.args.max_size)
             self.remove_non_words()
             self.estimate_words()
             if not self.wordlist_over_max_limit() and self.args.uppercase > 0:
@@ -233,6 +232,7 @@ class WordlistGenerator:
                 self.insert_deterministic_chars()
             if not self.wordlist_over_max_limit() and self.args.random_chars > 0:
                 self.insert_random_chars()
+            self.force_len(self.args.min_size, self.args.max_size)
         except Exception:
             logging.error("An error occurred during wordlist generation", exc_info=True)
 
@@ -310,6 +310,8 @@ class WordlistGenerator:
     def estimate_words(self):
         total = 0
         for word in self._wordlist:
+            if not word:
+                continue
             possibilities_for_each_char = []
             for ch in word:
                 possibilities = {ch.lower(), ch.upper()}
